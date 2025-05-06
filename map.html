@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Sewage Map Search</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+
+    <style>
+        #map {
+            height: 500px;
+            width: 100%;
+        }
+        #search-bar {
+            margin: 10px;
+        }
+        #city-info {
+            margin: 20px;
+            font-family: Arial, sans-serif;
+        }
+        ul {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+<div id="search-bar">
+    <input type="text" id="location" placeholder="Enter state or city">
+    <button onclick="searchLocation()">Search</button>
+</div>
+
+<div id="map"></div>
+<div id="city-info"></div>
+
+<!-- Leaflet JS -->
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+    var map = L.map('map').setView([23.0225, 72.5714], 5);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        maxZoom: 19
+    }).addTo(map);
+    var marker = L.marker([23.0225, 72.5714]).addTo(map);
+
+    const cityData = {
+        // Cities
+        "mumbai": {
+            columns: ["Treatment Coverage", "Modern Tech Use", "Recycling Sewage", "New Projects"],
+            data: ["40-50%", "Low", "<10%", "Underway (MSDP II)"]
+        },
+        "delhi": {
+            columns: ["Treatment Coverage", "Unauthorized Settlements", "Tech Use", "Rainwater Overflow"],
+            data: ["60%", "High", "Emerging", "Severe"]
+        },
+        "new york": {
+            columns: ["Treatment Coverage", "Unauthorized Settlements", "Tech Use", "Rainwater Overflow"],
+            data: ["100%", "None", "Advanced (AI, green infra)", "Controlled but present"]
+        },
+        "singapore": {
+            columns: ["Treatment Coverage", "Modern Tech Use", "Recycling Sewage", "New Projects"],
+            data: ["100%", "Very High", "40%", "Expanding DTSS"]
+        },
+
+        // Indian States/UTs (sample entries, full data included below)
+        "andhra pradesh": { columns: ["Sewage Generated: ~2,000 MLD", "Treatment Capacity: ~1,200 MLD", "Issues: Underutilization of STPs and operational inefficiencies."] },
+        "arunachal pradesh": { columns: ["Sewage Generated: ~100 MLD", "Treatment Capacity: ~50 MLD", "Issues: Sparse population, hilly terrain limit centralized treatment."] },
+        "assam": { columns: ["Sewage Generated: ~1,200 MLD", "Treatment Capacity: ~500 MLD", "Issues: Flooding worsens untreated discharge."] },
+        "bihar": { columns: ["Sewage Generated: ~2,500 MLD", "Treatment Capacity: ~1,200 MLD", "Issues: Urban growth outpaces treatment."] },
+        "chhattisgarh": { columns: ["Sewage Generated: ~1,000 MLD", "Treatment Capacity: ~500 MLD", "Issues: Low sewer connectivity."] },
+        "goa": { columns: ["Sewage Generated: ~250 MLD", "Treatment Capacity: ~150 MLD", "Issues: Tourism strains treatment."] },
+        "gujarat": { columns: ["Sewage Generated: ~3,000 MLD", "Treatment Capacity: ~2,000 MLD", "Issues: Industrial and urban pollution."] },
+        "haryana": { columns: ["Sewage Generated: ~2,200 MLD", "Treatment Capacity: ~1,700 MLD", "Issues: Outdated STPs."] },
+        "himachal pradesh": { columns: ["Sewage Generated: ~300 MLD", "Treatment Capacity: ~200 MLD", "Issues: Mountainous terrain hinders expansion."] },
+        "jharkhand": { columns: ["Sewage Generated: ~1,300 MLD", "Treatment Capacity: ~600 MLD", "Issues: Poor sewerage planning."] },
+        "karnataka": { columns: ["Sewage Generated: ~4,000 MLD", "Treatment Capacity: ~2,800 MLD", "Issues: STP overload in Bengaluru."] },
+        "kerala": { columns: ["Sewage Generated: ~2,200 MLD", "Treatment Capacity: ~1,200 MLD", "Issues: Dense housing limits efficiency."] },
+        "madhya pradesh": { columns: ["Sewage Generated: ~2,700 MLD", "Treatment Capacity: ~1,500 MLD", "Issues: Ganga basin pollution."] },
+        "maharashtra": { columns: ["Sewage Generated: ~8,000 MLD", "Treatment Capacity: ~5,000 MLD", "Issues: STP overload in cities."] },
+        "manipur": { columns: ["Sewage Generated: ~200 MLD", "Treatment Capacity: ~100 MLD", "Issues: Localized systems dominate."] },
+        "meghalaya": { columns: ["Sewage Generated: ~200 MLD", "Treatment Capacity: ~80 MLD", "Issues: Hilly terrain limits coverage."] },
+        "mizoram": { columns: ["Sewage Generated: ~150 MLD", "Treatment Capacity: ~70 MLD", "Issues: Dependence on soak pits."] },
+        "nagaland": { columns: ["Sewage Generated: ~100 MLD", "Treatment Capacity: ~50 MLD", "Issues: Informal systems, hilly areas."] },
+        "odisha": { columns: ["Sewage Generated: ~1,800 MLD", "Treatment Capacity: ~1,000 MLD", "Issues: Flood disruption of treatment."] },
+        "punjab": { columns: ["Sewage Generated: ~2,300 MLD", "Treatment Capacity: ~1,700 MLD", "Issues: River pollution from untreated discharge."] },
+        "rajasthan": { columns: ["Sewage Generated: ~2,200 MLD", "Treatment Capacity: ~1,200 MLD", "Issues: Water scarcity; decentralized need."] },
+        "sikkim": { columns: ["Sewage Generated: ~50 MLD", "Treatment Capacity: ~30 MLD", "Issues: Hilly towns rely on septic systems."] },
+        "tamil nadu": { columns: ["Sewage Generated: ~4,500 MLD", "Treatment Capacity: ~2,800 MLD", "Issues: Illegal connections, aging STPs."] },
+        "telangana": { columns: ["Sewage Generated: ~2,800 MLD", "Treatment Capacity: ~1,800 MLD", "Issues: Musi river pollution."] },
+        "tripura": { columns: ["Sewage Generated: ~150 MLD", "Treatment Capacity: ~100 MLD", "Issues: Open drains in small towns."] },
+        "uttar pradesh": { columns: ["Sewage Generated: ~6,800 MLD", "Treatment Capacity: ~3,800 MLD", "Issues: Ganga pollution, poor STP performance."] },
+        "uttarakhand": { columns: ["Sewage Generated: ~400 MLD", "Treatment Capacity: ~250 MLD", "Issues: Tourist town STP overload."] },
+        "west bengal": { columns: ["Sewage Generated: ~4,000 MLD", "Treatment Capacity: ~2,500 MLD", "Issues: Hooghly River suffers untreated discharge."] },
+        "chandigarh": { columns: ["Sewage Generated: ~188 MLD", "Treatment Capacity: ~293 MLD", "Issues: Peak loads, aging system."] },
+        "puducherry": { columns: ["Sewage Generated: ~100 MLD", "Treatment Capacity: ~80 MLD", "Issues: Incomplete network coverage."] },
+        "jammu & kashmir": { columns: ["Sewage Generated: ~500 MLD", "Treatment Capacity: ~300 MLD", "Issues: Kashmir region lacks STPs."] },
+        "ladakh": { columns: ["Sewage Generated: ~50 MLD", "Treatment Capacity: ~20 MLD", "Issues: Harsh terrain; septic tanks used."] },
+        "andaman & nicobar islands": { columns: ["Sewage Generated: ~100 MLD", "Treatment Capacity: Minimal", "Issues: Coastal discharge; no centralized STPs."] },
+        "lakshadweep": { columns: ["Sewage Generated: ~20 MLD", "Treatment Capacity: Minimal", "Issues: Remote islands; no sewage network."] },
+        "dadra & nagar haveli and daman & diu": { columns: ["Sewage Generated: ~150 MLD", "Treatment Capacity: ~100 MLD", "Issues: Industrial discharge adds to load."] }
+    };
+
+    function searchLocation() {
+        var place = document.getElementById("location").value.trim().toLowerCase();
+        fetch('https://nominatim.openstreetmap.org/search?format=json&q=' + place)
+        .then(response => response.json())
+        .then(data => {
+            if (data.length > 0) {
+                var lat = data[0].lat;
+                var lon = data[0].lon;
+                map.setView([lat, lon], 10);
+                marker.setLatLng([lat, lon]);
+                showCityInfo(place);
+            } else {
+                alert("Location not found.");
+                document.getElementById("city-info").innerHTML = "";
+            }
+        });
+    }
+
+    function showCityInfo(cityName) {
+        const key = cityName.toLowerCase();
+        const entry = cityData[key];
+        const infoDiv = document.getElementById("city-info");
+
+        if (entry) {
+            let html = `<h3>Information for ${cityName.charAt(0).toUpperCase() + cityName.slice(1)}</h3><ul>`;
+            if (entry.data) {
+                for (let i = 0; i < entry.columns.length; i++) {
+                    html += `<li><strong>${entry.columns[i]}:</strong> ${entry.data[i]}</li>`;
+                }
+            } else {
+                for (let item of entry.columns) {
+                    html += `<li>${item}</li>`;
+                }
+            }
+            html += '</ul>';
+            infoDiv.innerHTML = html;
+        } else {
+            infoDiv.innerHTML = "<p>No record for this city or state.</p>";
+        }
+    }
+</script>
+
+</body>
+</html>
